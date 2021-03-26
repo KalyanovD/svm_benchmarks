@@ -4,6 +4,7 @@ import timeit
 import numpy as np
 import pandas as pd
 import warnings
+from sklearn.metrics import log_loss
 warnings.filterwarnings("ignore")
 
 
@@ -23,16 +24,12 @@ if arg_name_library == 'idp_sklearn':
     from daal4py.sklearn import patch_sklearn
     patch_sklearn()
     from sklearn.svm import SVC
-    from sklearn.metrics import log_loss
 elif arg_name_library == 'sklearn':
     from sklearn.svm import SVC
-    from sklearn.metrics import log_loss
 elif arg_name_library == 'thunder':
     from thundersvm import SVC
-    from sklearn.metrics import log_loss
 elif arg_name_library == 'cuml':
     from cuml import SVC
-    from cuml.metrics import log_loss
     from cupy import unique
     import cudf
 
@@ -98,19 +95,21 @@ def run_svm_proba_workload(workload_name, x_train, x_test, y_train, y_test, C=1.
     y_pred_train = clf.predict_proba(x_train)
     t1 = timeit.default_timer()
     time_predict_train_run = t1 - t0
-    acc_train = log_loss(y_train, y_pred_train)
 
     t0 = timeit.default_timer()
     y_pred = clf.predict_proba(x_test)
     t1 = timeit.default_timer()
     time_predict_test_run = t1 - t0
-    acc_test = log_loss(y_test, y_pred)
 
     n_classes = 0
     if arg_name_library == 'cuml':
         n_classes = len(unique(y_train.values))
+        acc_train = log_loss(y_train.to_pandas().values, y_pred_train.to_pandas().values)
+        acc_test = log_loss(y_test.to_pandas().values, y_pred.to_pandas().values)
     else:
         n_classes = len(np.unique(y_train))
+        acc_train = log_loss(y_train, y_pred_train)
+        acc_test = log_loss(y_test, y_pred)
 
     print('{}: n_samples:{}; n_features:{}; n_classes:{}; C:{}; kernel:{}'.format(
         workload_name, x_train.shape[0], x_train.shape[1], n_classes, C, kernel))
